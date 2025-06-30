@@ -209,7 +209,7 @@ export const supportPP = async () => {
             await githubApi.followingUser()
             await githubApi.startProgect('PakePlus')
             await githubApi.startProgect('PakePlus-Android')
-            // await githubApi.startProgect('PakePlus-iOS')
+            await githubApi.startProgect('PakePlus-iOS')
         }
     } catch (error) {
         console.error('supportPP error', error)
@@ -599,13 +599,6 @@ export const getInitRust = async (params: any) => {
         if (!params.state) {
             content = content.replaceAll('if true {', 'if false {')
         }
-        if (params.injectjq) {
-            // 替换INJECTJQ
-            content = content.replaceAll(
-                '.initialization_script(include_str!("../../data/custom.js"))',
-                `.initialization_script(include_str!("../../data/jquery.min.js"))\r.initialization_script(include_str!("../../data/custom.js"))`
-            )
-        }
         return base64Encode(content)
     }
 }
@@ -650,13 +643,6 @@ export const getInitRustFetch = async (params: any) => {
     // 替换STATE
     if (!params.state) {
         content = content.replaceAll('if true {', 'if false {')
-    }
-    if (params.injectjq) {
-        // 替换INJECTJQ
-        content = content.replaceAll(
-            '.initialization_script(include_str!("../../data/custom.js"))',
-            `.initialization_script(include_str!("../../data/jquery.min.js"))\r.initialization_script(include_str!("../../data/custom.js"))`
-        )
     }
     return base64Encode(content)
 }
@@ -750,35 +736,49 @@ const drawAppleStylePath = (
 }
 
 // use canvas to crop image to round
-export const cropImageToRound = (image: any, padding: number = 0) => {
-    const canvas = document.createElement('canvas')
-    const ctx: any = canvas.getContext('2d')
+export const cropImageToRound = async (
+    base64Image: string,
+    padding: number = 0
+): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const canvas = document.createElement('canvas')
+        const ctx: any = canvas.getContext('2d')
 
-    // set canvas size to image size
-    canvas.width = image.width
-    canvas.height = image.height
+        const image = new Image()
+        image.onload = () => {
+            // set canvas size to image size
+            canvas.width = image.width
+            canvas.height = image.height
 
-    // transparent background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0)'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+            // transparent background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // draw round path
-    drawAppleStylePath(ctx, canvas.width, canvas.height, padding)
+            // draw round path
+            drawAppleStylePath(ctx, canvas.width, canvas.height, padding)
 
-    // crop image
-    ctx.save()
-    ctx.clip()
-    ctx.drawImage(
-        image,
-        padding,
-        padding,
-        canvas.width - 2 * padding,
-        canvas.height - 2 * padding
-    )
-    ctx.restore()
+            // crop image
+            ctx.save()
+            ctx.clip()
+            ctx.drawImage(
+                image,
+                padding,
+                padding,
+                canvas.width - 2 * padding,
+                canvas.height - 2 * padding
+            )
+            ctx.restore()
 
-    // convert cropped image to Base64
-    return canvas.toDataURL('image/png')
+            // convert cropped image to Base64
+            resolve(canvas.toDataURL('image/png'))
+        }
+
+        image.onerror = (error) => {
+            reject(new Error('Failed to load image from base64'))
+        }
+
+        image.src = base64Image
+    })
 }
 
 // get base64 image size

@@ -529,7 +529,6 @@ import { ElMessageBox } from 'element-plus'
 import { usePPStore } from '@/store'
 import {
     readFile,
-    readTextFile,
     writeTextFile,
     exists,
     remove,
@@ -931,15 +930,12 @@ const switchTauriConfig = () => {
 }
 
 // icon confirm
-const confirmIcon = (base64Data: string) => {
+const confirmIcon = async (base64Data: string) => {
     cutVisible.value = false
     iconBase64.value = base64Data
     store.currentProject.icon = base64Data
-    const image = new Image()
-    image.src = base64Data
-    image.onload = () => {
-        roundIcon.value = cropImageToRound(image)
-    }
+    // if local build, then set padding 50
+    roundIcon.value = await cropImageToRound(base64Data)
 }
 
 // platform change
@@ -1140,7 +1136,7 @@ const handleFileChange = async (event: any) => {
     }
 }
 
-// 仓库是否已经存在该文件并获取sha, 不存在则创建
+// check if file exists in repo and get sha, if not, create it
 const upSrcFile = async (filePath: string, base64Content: string) => {
     const resSha = await githubApi.getFileSha(
         store.userInfo.login,
@@ -1160,7 +1156,7 @@ const upSrcFile = async (filePath: string, base64Content: string) => {
     } else {
         delete params.sha
     }
-    // 更新文件
+    // update file
     const updateRes: any = await githubApi.updateFileContent(
         store.userInfo.login,
         'PakePlus',
@@ -1631,9 +1627,14 @@ const easyLocal = async () => {
         targetDir: targetDir,
         exeName: targetName,
         config: store.currentProject.more.windows,
-        base64Png: store.currentProject.iconRound
-            ? roundIcon.value
-            : iconBase64.value,
+        base64Png:
+            platformName === 'windows'
+                ? store.currentProject.iconRound
+                    ? roundIcon.value
+                    : iconBase64.value
+                : store.currentProject.iconRound
+                ? await cropImageToRound(roundIcon.value, 50)
+                : iconBase64.value,
         debug: store.currentProject.desktop.debug,
         customJs: await getInitializationScript(true),
         htmlPath: store.currentProject.htmlPath,
@@ -1707,6 +1708,7 @@ const publishWeb = async () => {
             confirmButtonText: t('confirm'),
             type: 'warning',
             center: true,
+            showCancelButton: false,
         }).finally(() => {
             openUrl(urlMap.questiondoc)
         })
@@ -1725,6 +1727,7 @@ const publishCheck = async () => {
         await easyLocal()
     } else if (store.token === '') {
         oneMessage.error(t('configToken'))
+        buildLoading.value = false
         return
     } else {
         if (checkLastPublish()) {

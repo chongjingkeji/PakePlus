@@ -424,13 +424,6 @@ pub async fn update_init_rs(
     } else {
         contents = contents.replace("if true {", "if false {");
     }
-    // 替换injectjq
-    if injectjq {
-        contents = contents.replace(
-            r#".initialization_script(include_str!("../../data/custom.js"))"#,
-            r#".initialization_script(include_str!("../../data/jquery.min.js")).initialization_script(include_str!("../../data/custom.js"))"#,
-        );
-    }
     // The new file content, using Base64 encoding
     let encoded_contents = BASE64_STANDARD.encode(contents);
     return encoded_contents;
@@ -792,12 +785,10 @@ pub async fn windows_build(
     }
     #[cfg(not(debug_assertions))]
     sleep(Duration::from_secs(10)).await;
-    // config_dir
     let config_dir = base_path.join("config").join("inject");
     if !config_dir.exists() {
         fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
     }
-    // www dir
     let www_dir = base_path.join("config").join("www");
     if !html_path.is_empty() {
         let html_dir = Path::new(&html_path);
@@ -807,12 +798,10 @@ pub async fn windows_build(
     }
     #[cfg(not(debug_assertions))]
     sleep(Duration::from_secs(10)).await;
-    // custom js
     let custom_js_path = config_dir.join("custom.js");
     fs::write(custom_js_path, custom_js).map_err(|e| e.to_string())?;
     let man_path = base_path.join("config").join("man");
     fs::write(man_path, config).map_err(|e| e.to_string())?;
-    // copy html
     let www_dir = base_path.join("config").join("www");
     if !html_path.is_empty() {
         let html_dir = Path::new(&html_path);
@@ -820,7 +809,6 @@ pub async fn windows_build(
             copy_dir(html_dir, &www_dir).expect("copy html dir failed");
         }
     }
-    // exe
     let exe_path = env::current_exe().unwrap();
     let exe_dir = exe_path.parent().unwrap();
     let rhexe_dir = exe_dir.join("data").join("rh.exe");
@@ -845,7 +833,6 @@ pub async fn macos_build(
     custom_js: String,
     html_path: String,
 ) -> Result<(), String> {
-    // if dev, need create Info.plist file in target dir
     let base_path = Path::new(base_dir).join(exe_name);
     let app_dir = base_path.join("Contents");
     if !app_dir.exists() {
@@ -861,7 +848,6 @@ pub async fn macos_build(
     if !resources_dir.exists() {
         fs::create_dir_all(&resources_dir).expect("create resources dir failed");
     }
-    // copy html
     let www_dir = base_path.join("Contents/MacOS/config/www");
     if !html_path.is_empty() {
         let html_dir = Path::new(&html_path);
@@ -871,7 +857,6 @@ pub async fn macos_build(
     }
     #[cfg(not(debug_assertions))]
     sleep(Duration::from_secs(10)).await;
-    // custom js
     let custom_js_path = config_dir.join("custom.js");
     fs::write(custom_js_path, custom_js).expect("write custom.js failed");
     let exe_path = env::current_exe().unwrap();
@@ -880,21 +865,18 @@ pub async fn macos_build(
     let info_plist_source = exe_parent_dir.join("Info.plist");
     let info_plist_target = base_path.join("Contents/Info.plist");
     fs::copy(&info_plist_source, &info_plist_target).expect("copy info.plist failed");
-    // let pakeplus_app_source = exe_dir.join("PakePlus");
     let pakeplus_app_target = base_path.join("Contents/MacOS/PakePlus");
     fs::copy(&exe_path, &pakeplus_app_target).expect("copy pakeplus app failed");
     #[cfg(not(debug_assertions))]
     sleep(Duration::from_secs(10)).await;
     let man_path = base_path.join("Contents/MacOS/config/man");
     fs::write(man_path, config).expect("write man failed");
-    // creat icns
     let _ = png_to_icns(
         base64_png.replace("data:image/png;base64,", ""),
         resources_dir.to_str().unwrap().to_string(),
     )
     .expect("convert png to icns failed");
     let base_app = Path::new(base_dir).join(format!("{}.app", exe_name));
-    // if base_app exists, delete it
     if base_app.exists() {
         fs::remove_dir_all(&base_app).expect("delete old app failed");
     }
